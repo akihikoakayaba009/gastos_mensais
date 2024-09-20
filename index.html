@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <title>Orçamento pessoal</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+    <script defer src="https://use.fontawesome.com/releases/v5.0.8/js/all.js"></script>
+</head>
+
+<body onload="carregaListaDespesas()">
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-5">
+    <div class="container">
+        <a class="navbar-brand" href="#">
+            <img src="logo.png" width="50" height="35" alt="Orçamento pessoal">
+        </a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item active">
+                    <a class="nav-link" href="#">Cadastro</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#">Consulta</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <h1 class="display-4">Registro de nova despesa</h1>
+    <div class="row mb-2">
+        <div class="col-md-2">
+            <input type="number" class="form-control" placeholder="Ano" id="ano" />
+        </div>
+        <div class="col-md-2">
+            <input type="number" class="form-control" placeholder="Mês" id="mes" />
+        </div>
+        <div class="col-md-2">
+            <input type="number" class="form-control" placeholder="Dia" id="dia" />
+        </div>
+        <div class="col-md-2">
+            <input type="text" class="form-control" placeholder="Tipo" id="tipo" />
+        </div>
+        <div class="col-md-2">
+            <input type="text" class="form-control" placeholder="Descrição" id="descricao" />
+        </div>
+        <div class="col-md-2">
+            <input type="number" class="form-control" placeholder="Valor" id="valor" />
+        </div>
+        <div class="col-md-2 d-flex justify-content-end">
+            <button type="button" class="btn btn-primary" onclick="cadastrarDespesas()">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
+    </div>
+
+    <h1 class="display-4">Lista de Despesas</h1>
+    <div class="row">
+        <div class="col">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Tipo</th>
+                        <th>Descrição</th>
+                        <th>Valor</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="listaDespesas"></tbody>
+            </table>
+            <h4>Total: <span id="totalGastos">0</span></h4>
+        </div>
+    </div>
+</div>
+
+<script>
+class Bd {
+    constructor() {
+        this.endpoint = 'https://66edf797380821644cde720d.mockapi.io/saida/gasto';
+    }
+
+    async gravar(d) {
+        try {
+            const response = await fetch(this.endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(d),
+            });
+            if (!response.ok) throw new Error('Erro ao cadastrar despesa');
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    async recuperarTodosRegistros() {
+        try {
+            const response = await fetch(this.endpoint);
+            if (!response.ok) throw new Error('Erro ao recuperar despesas');
+            return await response.json();
+        } catch (error) {
+            console.error('Error:', error);
+            return [];
+        }
+    }
+
+    async pesquisar(despesa) {
+        let despesas = await this.recuperarTodosRegistros();
+        return despesas.filter(d => {
+            return (!despesa.ano || d.ano == despesa.ano) &&
+                   (!despesa.mes || d.mes == despesa.mes) &&
+                   (!despesa.dia || d.dia == despesa.dia) &&
+                   (!despesa.tipo || d.tipo == despesa.tipo) &&
+                   (!despesa.descricao || d.descricao == despesa.descricao) &&
+                   (!despesa.valor || d.valor == despesa.valor);
+        });
+    }
+
+    async remover(id) {
+        try {
+            const response = await fetch(`${this.endpoint}/${id}`, {
+                method: 'DELETE',
+            });
+            if (!response.ok) throw new Error('Erro ao deletar despesa');
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+}
+
+let bd = new Bd();
+
+async function cadastrarDespesas() {
+    let ano = document.getElementById('ano').value;
+    let mes = document.getElementById('mes').value;
+    let dia = document.getElementById('dia').value;
+    let tipo = document.getElementById('tipo').value;
+    let descricao = document.getElementById('descricao').value;
+    let valor = document.getElementById('valor').value;
+
+    let despesa = { ano, mes, dia, tipo, descricao, valor };
+
+    await bd.gravar(despesa);
+    carregaListaDespesas();
+    resetarCampos();
+}
+
+async function carregaListaDespesas() {
+    let despesas = await bd.recuperarTodosRegistros();
+    let listaDespesas = document.getElementById('listaDespesas');
+    listaDespesas.innerHTML = '';
+
+    let total = 0;
+
+    despesas.forEach(function(d) {
+        total += parseFloat(d.valor);
+        let linha = listaDespesas.insertRow();
+        linha.insertCell(0).innerHTML = `${d.dia}/${d.mes}/${d.ano}`;
+        linha.insertCell(1).innerHTML = d.tipo;
+        linha.insertCell(2).innerHTML = d.descricao;
+        linha.insertCell(3).innerHTML = d.valor;
+
+        let btn = document.createElement("button");
+        btn.className = 'btn btn-danger';
+        btn.innerHTML = '<i class="fas fa-times"></i>';
+        btn.onclick = async function() {
+            await bd.remover(d.id);
+            carregaListaDespesas();
+        };
+        linha.insertCell(4).append(btn);
+    });
+
+    document.getElementById('totalGastos').innerText = total.toFixed(2);
+}
+
+function resetarCampos() {
+    document.getElementById('ano').value = '';
+    document.getElementById('mes').value = '';
+    document.getElementById('dia').value = '';
+    document.getElementById('tipo').value = '';
+    document.getElementById('descricao').value = '';
+    document.getElementById('valor').value = '';
+}
+</script>
+</body>
+</html>
